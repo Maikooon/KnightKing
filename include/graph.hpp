@@ -1,8 +1,8 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2019 Ke Yang, Tsinghua University 
- * 
+ * Copyright (c) 2019 Ke Yang, Tsinghua University
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -46,14 +46,14 @@
 #include "storage.hpp"
 #include "mpi_helper.hpp"
 
-template<typename edge_data_t>
+template <typename edge_data_t>
 struct AdjUnit
 {
     vertex_id_t neighbour;
     edge_data_t data;
 };
 
-template<>
+template <>
 struct AdjUnit<EmptyData>
 {
     union
@@ -63,7 +63,7 @@ struct AdjUnit<EmptyData>
     };
 };
 
-template<typename edge_data_t>
+template <typename edge_data_t>
 struct AdjList
 {
     AdjUnit<edge_data_t> *begin;
@@ -75,8 +75,8 @@ struct AdjList
     }
 };
 
-//comprised column row
-template<typename edge_data_t>
+// comprised column row
+template <typename edge_data_t>
 struct EdgeContainer
 {
     AdjList<edge_data_t> *adj_lists;
@@ -86,21 +86,22 @@ struct EdgeContainer
     {
         if (adj_lists != nullptr)
         {
-            delete []adj_lists;
+            delete[] adj_lists;
         }
         if (adj_units != nullptr)
         {
-            delete []adj_units;
+            delete[] adj_units;
         }
     }
 };
 
-enum MPIMessageTag {
+enum MPIMessageTag
+{
     Tag_ShuffleGraph,
     Tag_Msg
 };
 
-template<typename T>
+template <typename T>
 class Message
 {
 public:
@@ -113,6 +114,7 @@ struct DistributedExecutionCtx
     std::mutex phase_locks[DISTRIBUTEDEXECUTIONCTX_PHASENUM];
     int unlocked_phase;
     size_t **progress;
+
 public:
     DistributedExecutionCtx()
     {
@@ -126,10 +128,10 @@ enum GraphFormat
     GF_Edgelist
 };
 
-template<typename edge_data_t>
+template <typename edge_data_t>
 class GraphEngine
 {
-protected: 
+protected:
     vertex_id_t v_num;
     edge_id_t e_num;
     int worker_num;
@@ -141,13 +143,14 @@ protected:
     partition_id_t local_partition_id;
     partition_id_t partition_num;
 
-    MessageBuffer **thread_local_msg_buffer; 
+    MessageBuffer **thread_local_msg_buffer;
     MessageBuffer **msg_send_buffer;
     MessageBuffer **msg_recv_buffer;
     std::mutex *send_locks;
     std::mutex *recv_locks;
 
     DistributedExecutionCtx dist_exec_ctx;
+
 public:
     vertex_id_t *vertex_in_degree;
     vertex_id_t *vertex_out_degree;
@@ -161,15 +164,14 @@ protected:
         this->worker_num = worker_num_param;
         omp_set_dynamic(0);
         omp_set_num_threads(worker_num);
-        //message buffer depends on worker number
+        // message buffer depends on worker number
         free_msg_buffer();
     }
 
 public:
     inline bool is_local_vertex(vertex_id_t v_id)
     {
-        return v_id >= vertex_partition_begin[local_partition_id]
-            && v_id < vertex_partition_end[local_partition_id];
+        return v_id >= vertex_partition_begin[local_partition_id] && v_id < vertex_partition_end[local_partition_id];
     }
     inline bool is_valid_edge(Edge<edge_data_t> e)
     {
@@ -206,29 +208,29 @@ public:
 
 public:
     // deallocate a vertex array
-    template<typename T>
-    void dealloc_vertex_array(T * array)
+    template <typename T>
+    void dealloc_vertex_array(T *array)
     {
         dealloc_array(array, v_num);
     }
 
-    template<typename T>
-    void dealloc_array(T * array, size_t num)
+    template <typename T>
+    void dealloc_array(T *array, size_t num)
     {
         munmap(array, sizeof(T) * num);
     }
 
     // allocate a vertex array
-    template<typename T>
-    T * alloc_vertex_array()
+    template <typename T>
+    T *alloc_vertex_array()
     {
         return alloc_array<T>(v_num);
     }
 
-    template<typename T>
-    T * alloc_array(size_t num)
+    template <typename T>
+    T *alloc_array(size_t num)
     {
-        T* array = (T*) mmap(NULL, sizeof(T) * num, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        T *array = (T *)mmap(NULL, sizeof(T) * num, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         assert(array != nullptr);
         return array;
     }
@@ -260,20 +262,20 @@ public:
     {
         if (vertex_partition_begin != nullptr)
         {
-            delete []vertex_partition_begin;
+            delete[] vertex_partition_begin;
         }
         if (vertex_partition_end != nullptr)
         {
-            delete []vertex_partition_end;
+            delete[] vertex_partition_end;
         }
 
         if (send_locks != nullptr)
         {
-            delete []send_locks;
+            delete[] send_locks;
         }
         if (recv_locks != nullptr)
         {
-            delete []recv_locks;
+            delete[] recv_locks;
         }
 
         if (vertex_in_degree != nullptr)
@@ -298,15 +300,15 @@ public:
         {
             for (partition_id_t t_i = 0; t_i < worker_num; t_i++)
             {
-                delete []dist_exec_ctx.progress[t_i];
+                delete[] dist_exec_ctx.progress[t_i];
             }
-            delete []dist_exec_ctx.progress;
+            delete[] dist_exec_ctx.progress;
         }
 
         free_msg_buffer();
     }
 
-    void build_edge_container(Edge<edge_data_t> *edges, edge_id_t local_edge_num, EdgeContainer<edge_data_t> *ec, vertex_id_t* vertex_out_degree)
+    void build_edge_container(Edge<edge_data_t> *edges, edge_id_t local_edge_num, EdgeContainer<edge_data_t> *ec, vertex_id_t *vertex_out_degree)
     {
         ec->adj_lists = new AdjList<edge_data_t>[v_num];
         ec->adj_units = new AdjUnit<edge_data_t>[local_edge_num];
@@ -320,7 +322,7 @@ public:
         for (edge_id_t e_i = 0; e_i < local_edge_num; e_i++)
         {
             auto e = edges[e_i];
-            auto ep = ec->adj_lists[e.src].end ++;
+            auto ep = ec->adj_lists[e.src].end++;
             ep->neighbour = e.dst;
             if (!std::is_same<edge_data_t, EmptyData>::value)
             {
@@ -336,7 +338,7 @@ public:
         {
             e_count[vertex_partition_id[misc_edges[e_i].src]]++;
         }
-        Edge<edge_data_t> *tmp_es  = new Edge<edge_data_t>[misc_e_num];
+        Edge<edge_data_t> *tmp_es = new Edge<edge_data_t>[misc_e_num];
         std::vector<edge_id_t> e_p(partition_num, 0);
         for (partition_id_t p_i = 1; p_i < partition_num; p_i++)
         {
@@ -346,10 +348,11 @@ public:
         for (edge_id_t e_i = 0; e_i < misc_e_num; e_i++)
         {
             auto pt = vertex_partition_id[misc_edges[e_i].src];
-            tmp_es[e_p[pt] ++] = misc_edges[e_i];
+            tmp_es[e_p[pt]++] = misc_edges[e_i];
         }
         edge_id_t local_edge_p = 0;
-        std::thread send_thread([&](){
+        std::thread send_thread([&]()
+                                {
             for (partition_id_t step = 0; step < partition_num; step++)
             {
                 partition_id_t dst = (local_partition_id + step) % partition_num;
@@ -373,9 +376,9 @@ public:
                     send_data = (char*)send_data + send_sz;
                 }
                 usleep(100000);
-            }
-        });
-        std::thread recv_thread([&](){
+            } });
+        std::thread recv_thread([&]()
+                                {
             for (partition_id_t step = 0; step < partition_num; step++)
             {
                 partition_id_t src = (local_partition_id + partition_num - step) % partition_num;
@@ -397,15 +400,14 @@ public:
                     local_edge_p += sz / sizeof(Edge<edge_data_t>);
                 }
                 usleep(100000);
-            }
-        });
+            } });
         send_thread.join();
         recv_thread.join();
-        delete []tmp_es;
+        delete[] tmp_es;
         assert(local_e_num == local_edge_p);
     }
 
-    void load_graph(vertex_id_t v_num_param, const char* graph_path, bool load_as_undirected = false, GraphFormat graph_format = GF_Binary)
+    void load_graph(vertex_id_t v_num_param, const char *graph_path, bool load_as_undirected = false, GraphFormat graph_format = GF_Binary)
     {
         Timer timer;
 
@@ -419,10 +421,12 @@ public:
         if (graph_format == GF_Binary)
         {
             read_graph(graph_path, local_partition_id, partition_num, read_edges, read_e_num);
-        } else if (graph_format == GF_Edgelist)
+        }
+        else if (graph_format == GF_Edgelist)
         {
             read_edgelist(graph_path, local_partition_id, partition_num, read_edges, read_e_num);
-        } else
+        }
+        else
         {
             fprintf(stderr, "Unsupported graph formant");
             exit(1);
@@ -437,7 +441,7 @@ public:
                 std::swap(read_edges[e_i].src, read_edges[e_i].dst);
                 undirected_edges[e_i * 2 + 1] = read_edges[e_i];
             }
-            delete []read_edges;
+            delete[] read_edges;
             read_edges = undirected_edges;
             read_e_num *= 2;
         }
@@ -445,18 +449,18 @@ public:
         this->vertex_out_degree = alloc_vertex_array<vertex_id_t>();
         this->vertex_in_degree = alloc_vertex_array<vertex_id_t>();
         std::vector<vertex_id_t> local_vertex_degree(v_num, 0);
-        for (edge_id_t e_i = 0; e_i < read_e_num; e_i++) 
+        for (edge_id_t e_i = 0; e_i < read_e_num; e_i++)
         {
             local_vertex_degree[read_edges[e_i].src]++;
         }
-        MPI_Allreduce(local_vertex_degree.data(),  vertex_out_degree, v_num, get_mpi_data_type<vertex_id_t>(), MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(local_vertex_degree.data(), vertex_out_degree, v_num, get_mpi_data_type<vertex_id_t>(), MPI_SUM, MPI_COMM_WORLD);
 
         std::fill(local_vertex_degree.begin(), local_vertex_degree.end(), 0);
-        for (edge_id_t e_i = 0; e_i < read_e_num; e_i++) 
+        for (edge_id_t e_i = 0; e_i < read_e_num; e_i++)
         {
-            local_vertex_degree[read_edges[e_i].dst] ++;
+            local_vertex_degree[read_edges[e_i].dst]++;
         }
-        MPI_Allreduce(local_vertex_degree.data(),  vertex_in_degree, v_num, get_mpi_data_type<vertex_id_t>(), MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(local_vertex_degree.data(), vertex_in_degree, v_num, get_mpi_data_type<vertex_id_t>(), MPI_SUM, MPI_COMM_WORLD);
 
         vertex_partition_begin = new vertex_id_t[partition_num];
         vertex_partition_end = new vertex_id_t[partition_num];
@@ -473,7 +477,8 @@ public:
             if (p_i == 0)
             {
                 vertex_partition_begin[p_i] = 0;
-            } else
+            }
+            else
             {
                 vertex_partition_begin[p_i] = vertex_partition_end[p_i - 1];
             }
@@ -512,13 +517,13 @@ public:
         shuffle_edges(read_edges, read_e_num, local_edges, local_e_num);
         csr = new EdgeContainer<edge_data_t>();
         build_edge_container(local_edges, local_e_num, csr, vertex_out_degree);
-        delete []read_edges;
-        delete []local_edges;
+        delete[] read_edges;
+        delete[] local_edges;
 
         send_locks = new std::mutex[partition_num];
         recv_locks = new std::mutex[partition_num];
 
-        dist_exec_ctx.progress = new size_t*[worker_num];
+        dist_exec_ctx.progress = new size_t *[worker_num];
         for (partition_id_t t_i = 0; t_i < worker_num; t_i++)
         {
             dist_exec_ctx.progress[t_i] = new size_t[partition_num];
@@ -533,8 +538,8 @@ public:
     {
         if (thread_local_msg_buffer == nullptr)
         {
-            thread_local_msg_buffer = new MessageBuffer*[worker_num];
-            #pragma omp parallel
+            thread_local_msg_buffer = new MessageBuffer *[worker_num];
+#pragma omp parallel
             {
                 int worker_id = omp_get_thread_num();
                 thread_local_msg_buffer[worker_id] = new MessageBuffer();
@@ -542,7 +547,7 @@ public:
         }
         if (msg_send_buffer == nullptr)
         {
-            msg_send_buffer = new MessageBuffer*[partition_num];
+            msg_send_buffer = new MessageBuffer *[partition_num];
             for (partition_id_t p_i = 0; p_i < partition_num; p_i++)
             {
                 msg_send_buffer[p_i] = new MessageBuffer();
@@ -550,7 +555,7 @@ public:
         }
         if (msg_recv_buffer == nullptr)
         {
-            msg_recv_buffer = new MessageBuffer*[partition_num];
+            msg_recv_buffer = new MessageBuffer *[partition_num];
             for (partition_id_t p_i = 0; p_i < partition_num; p_i++)
             {
                 msg_recv_buffer[p_i] = new MessageBuffer();
@@ -558,7 +563,7 @@ public:
         }
 
         size_t local_buf_size = max_msg_size * THREAD_LOCAL_BUF_CAPACITY;
-        #pragma omp parallel
+#pragma omp parallel
         {
             int worker_id = omp_get_thread_num();
             if (thread_local_msg_buffer[worker_id]->sz < local_buf_size)
@@ -584,11 +589,11 @@ public:
     {
         if (thread_local_msg_buffer != nullptr)
         {
-            for (partition_id_t t_i = 0; t_i < worker_num; t_i ++)
+            for (partition_id_t t_i = 0; t_i < worker_num; t_i++)
             {
                 delete thread_local_msg_buffer[t_i];
             }
-            delete []thread_local_msg_buffer;
+            delete[] thread_local_msg_buffer;
         }
         if (msg_send_buffer != nullptr)
         {
@@ -596,7 +601,7 @@ public:
             {
                 delete msg_send_buffer[p_i];
             }
-            delete []msg_send_buffer;
+            delete[] msg_send_buffer;
         }
         if (msg_recv_buffer != nullptr)
         {
@@ -604,15 +609,15 @@ public:
             {
                 delete msg_recv_buffer[p_i];
             }
-            delete []msg_recv_buffer;
+            delete[] msg_recv_buffer;
         }
     }
 
-    template<typename msg_data_t>
+    template <typename msg_data_t>
     void emit(vertex_id_t dst_id, msg_data_t data, int worker_id)
     {
         typedef Message<msg_data_t> msg_t;
-        msg_t* buf_data = (msg_t*)thread_local_msg_buffer[worker_id]->data;
+        msg_t *buf_data = (msg_t *)thread_local_msg_buffer[worker_id]->data;
         auto &count = thread_local_msg_buffer[worker_id]->count;
         buf_data[count].dst_vertex_id = dst_id;
         buf_data[count].data = data;
@@ -627,18 +632,17 @@ public:
         }
     }
 
-
-    template<typename msg_data_t>
+    template <typename msg_data_t>
     void emit(vertex_id_t dst_id, msg_data_t data)
     {
         emit(dst_id, data, omp_get_thread_num());
     }
 
-    template<typename msg_t>
+    template <typename msg_t>
     void flush_thread_local_msg_buffer(partition_id_t worker_id)
     {
         auto local_buf = thread_local_msg_buffer[worker_id];
-        msg_t *local_data = (msg_t*)local_buf->data;
+        msg_t *local_data = (msg_t *)local_buf->data;
         auto &local_msg_count = local_buf->count;
         if (local_msg_count != 0)
         {
@@ -646,7 +650,7 @@ public:
             std::fill(dst_count, dst_count + partition_num, 0);
             for (vertex_id_t m_i = 0; m_i < local_msg_count; m_i++)
             {
-                dst_count[vertex_partition_id[local_data[m_i].dst_vertex_id]] ++;
+                dst_count[vertex_partition_id[local_data[m_i].dst_vertex_id]]++;
             }
             msg_t *dst_data_pos[partition_num];
             size_t end_data_pos[partition_num];
@@ -656,12 +660,12 @@ public:
 #ifdef UNIT_TEST
                 msg_send_buffer[p_i]->self_check<msg_t>();
 #endif
-                dst_data_pos[p_i] = (msg_t*)(msg_send_buffer[p_i]->data) + start_pos;
+                dst_data_pos[p_i] = (msg_t *)(msg_send_buffer[p_i]->data) + start_pos;
                 end_data_pos[p_i] = start_pos + dst_count[p_i];
             }
             for (vertex_id_t m_i = 0; m_i < local_msg_count; m_i++)
             {
-                *(dst_data_pos[vertex_partition_id[local_data[m_i].dst_vertex_id]]++) =  local_data[m_i];
+                *(dst_data_pos[vertex_partition_id[local_data[m_i].dst_vertex_id]]++) = local_data[m_i];
             }
             for (partition_id_t p_i = 0; p_i < partition_num; p_i++)
             {
@@ -680,18 +684,18 @@ public:
             int phase_begin = 0;
             while (progress_begin >= work_per_phase)
             {
-                phase_begin ++;
+                phase_begin++;
                 progress_begin -= work_per_phase;
             }
             int phase_end = 0;
             while (progress_end >= work_per_phase)
             {
-                phase_end ++;
+                phase_end++;
                 progress_end -= work_per_phase;
             }
             if (phase_end == phase_num)
             {
-                phase_end --;
+                phase_end--;
             }
             for (int phase_i = phase_begin; phase_i < phase_end; phase_i++)
             {
@@ -701,13 +705,12 @@ public:
         }
     }
 
-    template<typename msg_data_t>
+    template <typename msg_data_t>
     size_t distributed_execute(
         std::function<void(void)> msg_producer,
         std::function<void(Message<msg_data_t> *, Message<msg_data_t> *)> msg_consumer,
         Message<msg_data_t> *zero_copy_data = nullptr,
-        bool phased_exec = false
-    )
+        bool phased_exec = false)
     {
         typedef Message<msg_data_t> msg_t;
         Timer timer;
@@ -730,7 +733,8 @@ public:
             recv_locks[p_i].lock();
         }
         volatile size_t zero_copy_recv_count = 0;
-        std::thread recv_thread([&](){
+        std::thread recv_thread([&]()
+                                {
             for (partition_id_t p_i = 0; p_i < partition_num; p_i++)
             {
                 msg_recv_buffer[p_i]->count = 0;
@@ -781,10 +785,10 @@ public:
                     delete req;
                 }
                 recv_locks[src].unlock();
-            }
-        });
+            } });
 
-        std::thread send_thread([&](){
+        std::thread send_thread([&]()
+                                {
             size_t send_progress[partition_num];
             for (partition_id_t p_i = 0; p_i < partition_num; p_i++)
             {
@@ -851,8 +855,7 @@ public:
                 MPI_Status status;
                 MPI_Wait(req, &status);
                 delete req;
-            }
-        });
+            } });
 
         msg_producer();
 
@@ -887,8 +890,8 @@ public:
             {
                 size_t data_amount = msg_recv_buffer[src_partition_id]->count;
                 msg_num += data_amount;
-                msg_t* data_begin = (msg_t*)(msg_recv_buffer[src_partition_id]->data);
-                msg_t* data_end = data_begin + data_amount;
+                msg_t *data_begin = (msg_t *)(msg_recv_buffer[src_partition_id]->data);
+                msg_t *data_end = data_begin + data_amount;
                 msg_consumer(data_begin, data_end);
             }
             recv_locks[src_partition_id].unlock();
@@ -917,13 +920,13 @@ public:
         return glb_msg_num;
     }
 
-    template<typename reducer_data_t>
+    template <typename reducer_data_t>
     reducer_data_t process_vertices(std::function<reducer_data_t(vertex_id_t)> process)
     {
         vertex_id_t progress = vertex_partition_begin[local_partition_id];
         vertex_id_t step_length = PARALLEL_CHUNK_SIZE;
         reducer_data_t reducer = 0;
-#pragma omp parallel reduction(+:reducer)
+#pragma omp parallel reduction(+ : reducer)
         {
             vertex_id_t work_begin, work_end;
             while ((work_begin = __sync_fetch_and_add(&progress, step_length)) < vertex_partition_end[local_partition_id])
